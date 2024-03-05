@@ -53,28 +53,37 @@ def checkout():
     request_data = request.json
     responses = {}
     with ThreadPoolExecutor(max_workers=3) as executor:
-        future_to_call = {
-            executor.submit(detect_fraud): 'fraud',
-            executor.submit(verify_transaction): 'transaction',
-            executor.submit(suggestions): 'suggestions',
-        }
-        for future in as_completed(future_to_call):
-            call_type = future_to_call[future]
-            try:
-                responses[call_type] = future.result()
-            except Exception as exc:
-                print(f'{call_type} generated an exception: {exc}')
-                responses[call_type] = None
+        fraud_future = executor.submit(
+            detect_fraud,
+            request_data['creditCard']['number'],
+            request_data['creditCard']['expirationDate']
+        )
+        transaction_future = executor.submit(
+            verify_transaction,
+            request_data['title'],
+            request_data['user'],
+            request_data['creditCard']
+        )
+        suggestions_future = executor.submit(
+            suggestions,
+            request_data['title'],
+            request_data['author']
+        )
 
-    # Example of how to process responses
-    if responses['fraud'].is_fraud:
+        responses['fraud'] = fraud_future.result()
+        responses['transaction'] = transaction_future.result()
+        responses['suggestions'] = suggestions_future.result()
+
+    # Process responses
+    if responses['fraud'][0]:  # is_fraud
         order_status = 'Order Rejected due to fraud detection'
-    elif not responses['transaction'].is_valid:
+        suggested_books = []
+    elif not responses['transaction'][0]:  # is_valid
         order_status = 'Order Rejected due to transaction verification failure'
+        suggested_books = []
     else:
         order_status = 'Order Approved'
-        # Assuming the suggestions service returns a list of book titles
-        suggested_books = [{'title': book.title, 'author': book.author} for book in responses['suggestions'].bookTitles]
+        suggested_books = [{'title': book.title, 'author': book.author} for book in responses['suggestions']]
 
     # Construct the response
     response = {
