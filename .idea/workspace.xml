@@ -5,10 +5,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="eb8b0360-6033-43c5-933f-6b69fdb8c06a" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/.idea/inspectionProfiles/Project_Default.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/fraud_detection/src/app.py" beforeDir="false" afterPath="$PROJECT_DIR$/fraud_detection/src/app.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/transaction_verification/src/app.py" beforeDir="false" afterPath="$PROJECT_DIR$/transaction_verification/src/app.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -81,7 +78,7 @@
       <workItem from="1709561612980" duration="26000" />
       <workItem from="1709561676010" duration="3708000" />
       <workItem from="1709627850939" duration="15106000" />
-      <workItem from="1709658152329" duration="2727000" />
+      <workItem from="1709658152329" duration="4194000" />
     </task>
     <servers />
   </component>
