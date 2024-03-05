@@ -20,21 +20,21 @@ from utils.pb.fraud_detection import fraud_detection_pb2_grpc, fraud_detection_p
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
-class FraudDetectionServiceImpl(fraud_detection_pb2_grpc.FraudDetectionServiceServicer):
+class FraudDetectionServiceImpl(fraud_detection_pb2_grpc.FraudDetectionServicer):
     def CheckFraud(self, request, context):
         # Enhanced logic: Check if the amount is above a certain threshold
         fraud_threshold = 10000  # Example threshold for fraud detection
         if request.amount > fraud_threshold:
             logging.info(f"Transaction detected as fraud. Amount: {request.amount}")
-            return fraud_detection_pb2.FraudCheckResponse(is_fraud=True)
+            return fraud_detection_pb2.FraudDetectionResponse(is_fraud=True)
         else:
             logging.info(f"Transaction detected as not fraud. Amount: {request.amount}")
-            return fraud_detection_pb2.FraudCheckResponse(is_fraud=False)
+            return fraud_detection_pb2.FraudDetectionResponse(is_fraud=False)
 
 
 def serve():
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-    fraud_detection_pb2_grpc.add_FraudDetectionServiceServicer_to_server(
+    fraud_detection_pb2_grpc.add_FraudDetectionServicer_to_server(
         FraudDetectionServiceImpl(), server)
     server.add_insecure_port('[::]:50051')
     server.start()
