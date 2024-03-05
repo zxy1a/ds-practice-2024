@@ -20,7 +20,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 
 class FraudDetectionServiceImpl(fraud_detection_pb2_grpc.FraudDetectionServicer):
-    def CheckFraud(self, request, context):
+    def FraudDetection(self, request, context):
         message = ""
         expiry_date = datetime.datetime.strptime(request.expirationDate, "%m/%d")
         current_date = datetime.datetime.now()

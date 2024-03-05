@@ -18,7 +18,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 
 class SuggestionsServiceImpl(suggestions_pb2_grpc.SuggestionsServicer):
-    def GetSuggestions(self, request, context):
+    def BookSuggestions(self, request, context):
         # Predefined list of book titles to suggest
         book_titles = [
             "The Great Gatsby",
