@@ -1,72 +1,89 @@
 import sys
 import os
-
-# This set of lines are needed to import the gRPC stubs.
-# The path of the stubs is relative to the current file, or absolute inside the container.
-# Change these lines only if strictly needed.
-FILE = __file__ if '__file__' in globals() else os.getenv("PYTHONFILE", "")
-utils_path = os.path.abspath(os.path.join(FILE, '../../../utils/pb/fraud_detection'))
-sys.path.insert(0, utils_path)
-import fraud_detection_pb2 as fraud_detection
-import fraud_detection_pb2_grpc as fraud_detection_grpc
-
 import grpc
+import logging
+import CORS
+from utils.pb.fraud_detection import fraud_detection_pb2_grpc, fraud_detection_pb2
+from utils.pb.suggestions import suggestions_pb2_grpc, suggestions_pb2
+from utils.pb.transaction_verification import transaction_verification_pb2_grpc, transaction_verification_pb2
+from flask import Flask, request, jsonify
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent import futures
 
-def greet(name='you'):
-    # Establish a connection with the fraud-detection gRPC service.
+FILE = __file__ if '__file__' in globals() else os.getenv("PYTHONFILE", "")
+utils_path_fraud = os.path.abspath(os.path.join(FILE, '../../../utils/pb/fraud_detection'))
+sys.path.insert(0, utils_path_fraud)
+
+utils_path_transactionverfication = os.path.abspath(os.path.join(FILE, '../../../utils/pb/transaction_verification'))
+sys.path.insert(0, utils_path_transactionverfication)
+
+utils_path_suggestions = os.path.abspath(os.path.join(FILE, '../../../utils/pb/suggestions'))
+sys.path.insert(0, utils_path_suggestions)
+
+# Establish gRPC connection
+def detect_fraud(number, expiration_date):
     with grpc.insecure_channel('fraud_detection:50051') as channel:
-        # Create a stub object.
-        stub = fraud_detection_grpc.HelloServiceStub(channel)
-        # Call the service through the stub object.
-        response = stub.SayHello(fraud_detection.HelloRequest(name=name))
-    return response.greeting
+        stub = fraud_detection_pb2_grpc.FraudDetectionStub(channel)
+        response = stub.FraudDetection(fraud_detection_pb2.FraudDetectionRequest(number=number, expirationDate=expiration_date))
+        return response.is_fraud, response.reason
 
-# Import Flask.
-# Flask is a web framework for Python.
-# It allows you to build a web application quickly.
-# For more information, see https://flask.palletsprojects.com/en/latest/
-from flask import Flask, request
-from flask_cors import CORS
+def verify_transaction(title, user, credit_card):
+    with grpc.insecure_channel('transaction_verification:50052') as channel:
+        stub = transaction_verification_pb2_grpc.TransactionVerificationStub(channel)
+        response = stub.VerifyTransaction(transaction_verification_pb2.TransactionVerificationRequest(title=title, user=user, creditCard=credit_card))
+        return response.is_valid, response.message
 
+def suggestions(title, author):
+    with grpc.insecure_channel('suggestions:50053') as channel:
+        stub = suggestions_pb2_grpc.SuggestionsStub(channel)
+        response = stub.BookSuggestions(suggestions_pb2.SuggestionsRequest(title=title, author=author))
+        return response.title
+
+
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 # Create a simple Flask app.
 app = Flask(__name__)
 # Enable CORS for the app.
 CORS(app)
 
-# Define a GET endpoint.
-@app.route('/', methods=['GET'])
-def index():
-    """
-    Responds with 'Hello, [name]' when a GET request is made to '/' endpoint.
-    """
-    # Test the fraud-detection gRPC service.
-    response = greet(name='orchestrator')
-    # Return the response.
-    return response
 
 @app.route('/checkout', methods=['POST'])
 def checkout():
-    """
-    Responds with a JSON object containing the order ID, status, and suggested books.
-    """
-    # Print request object data
-    print("Request Data:", request.json)
+    request_data = request.json
+    responses = {}
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        future_to_call = {
+            executor.submit(detect_fraud): 'fraud',
+            executor.submit(verify_transaction): 'transaction',
+            executor.submit(suggestions): 'suggestions',
+        }
+        for future in as_completed(future_to_call):
+            call_type = future_to_call[future]
+            try:
+                responses[call_type] = future.result()
+            except Exception as exc:
+                print(f'{call_type} generated an exception: {exc}')
+                responses[call_type] = None
 
-    # Dummy response following the provided YAML specification for the bookstore
-    order_status_response = {
-        'orderId': '12345',
-        'status': 'Order Approved',
-        'suggestedBooks': [
-            {'bookId': '123', 'title': 'Dummy Book 1', 'author': 'Author 1'},
-            {'bookId': '456', 'title': 'Dummy Book 2', 'author': 'Author 2'}
-        ]
+    # Example of how to process responses
+    if responses['fraud'].is_fraud:
+        order_status = 'Order Rejected due to fraud detection'
+    elif not responses['transaction'].is_valid:
+        order_status = 'Order Rejected due to transaction verification failure'
+    else:
+        order_status = 'Order Approved'
+        # Assuming the suggestions service returns a list of book titles
+        suggested_books = [{'title': book.title, 'author': book.author} for book in responses['suggestions'].bookTitles]
+
+    # Construct the response
+    response = {
+        'orderId': request_data['orderId'],
+        'status': order_status,
+        'suggestedBooks': suggested_books if order_status == 'Order Approved' else []
     }
-
-    return order_status_response
+    return jsonify(response)
 
 
 if __name__ == '__main__':
-    # Run the app in debug mode to enable hot reloading.
-    # This is useful for development.
-    # The default port is 5000.
     app.run(host='0.0.0.0')
