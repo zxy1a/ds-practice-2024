@@ -10,17 +10,16 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 class TransactionVerificationServiceImpl(transaction_verification_pb2_grpc.TransactionVerificationServicer):
     def VerifyTransaction(self, request, context):
-        # Define the transaction amount limit
-        MIN_AMOUNT = 1.0
-        MAX_AMOUNT = 10000.0
 
-        # Check if the transaction amount is within the limits
-        if MIN_AMOUNT <= request.amount <= MAX_AMOUNT:
-            logging.info(f"Transaction amount {request.amount} is within the allowed limits.")
-            return transaction_verification_pb2.TransactionVerificationResponse(is_valid=True)
+        card = request.creditCard
+
+        card_number = card.replace(" ", "").replace("-", "")
+        if len(card_number) == 16 and card_number.isdigit():
+            logging.info(f"Card number is valid")
+            return transaction_verification_pb2.TransactionVerificationResponse(is_valid=True, message="Approved")
         else:
-            logging.warning(f"Transaction amount {request.amount} is outside the allowed limits.")
-            return transaction_verification_pb2.TransactionVerificationResponse(is_valid=False)
+            logging.warning(f"Card number is invalid")
+            return transaction_verification_pb2.TransactionVerificationResponse(is_valid=False, message="Denied")
 
 
 def serve():
