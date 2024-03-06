@@ -21,16 +21,15 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 class FraudDetectionServiceImpl(fraud_detection_pb2_grpc.FraudDetectionServicer):
     def FraudDetection(self, request, context):
-        message = ""
-        expiry_date = datetime.datetime.strptime(request.expirationDate, "%m/%d")
+        expiry_date = datetime.datetime.strptime(request.expirationDate, "%m/%y")
         current_date = datetime.datetime.now()
-        six_months_later = current_date + datetime.timedelta(days=180)
-        if expiry_date > six_months_later:
-            logging.info("Transaction detected as fraud")
-            return fraud_detection_pb2.FraudDetectionResponse(is_fraud=True, message="Card is expired")
+        # six_months_later = current_date + datetime.timedelta(days=180)
+        if expiry_date < current_date:
+            logging.info("Transaction detected as a fraud")
+            return fraud_detection_pb2.FraudDetectionResponse(is_fraud=True, reason="Card is expired")
         else:
-            logging.info(f"Transaction detected as not fraud")
-            return fraud_detection_pb2.FraudDetectionResponse(is_fraud=False, message="Approved")
+            logging.info(f"Transaction detected no fraud")
+            return fraud_detection_pb2.FraudDetectionResponse(is_fraud=False, reason="Approved")
 
 
 def serve():
