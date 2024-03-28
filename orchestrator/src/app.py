@@ -32,8 +32,24 @@ def detect_fraud(number, expiration_date):
 def verify_transaction(title, user, credit_card):
     with grpc.insecure_channel('transaction_verification:50052') as channel:
         stub = transaction_verification_pb2_grpc.TransactionVerificationStub(channel)
+        # Construct CreditCard message
+        credit_card_message = transaction_verification_pb2.CreditCard(
+            number=credit_card['number'],
+            expirationDate=credit_card['expirationDate'],
+            cvv=credit_card.get('cvv', '')  
+        )
+        # Construct User message
+        user_message = transaction_verification_pb2.User(
+            name=user,
+            contact=''  
+        )
         response = stub.VerifyTransaction(
-            transaction_verification_pb2.TransactionVerificationRequest(title=title, user=user, creditCard=credit_card))
+            transaction_verification_pb2.TransactionVerificationRequest(
+                title=title,
+                user=user_message,
+                creditCard=credit_card_message
+            )
+        )
         return response.is_valid, response.message
 
 
@@ -41,7 +57,7 @@ def suggestions(title, author):
     with grpc.insecure_channel('suggestions:50053') as channel:
         stub = suggestions_pb2_grpc.SuggestionsStub(channel)
         response = stub.BookSuggestions(suggestions_pb2.SuggestionsRequest(title=title, author=author))
-        return response.title
+        return response.titles
 
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -56,6 +72,14 @@ def checkout():
     request_data = request.json
     responses = {}
     with ThreadPoolExecutor(max_workers=3) as executor:
+
+        first_item = request_data['items'][0] if 'items' in request_data and len(request_data['items']) > 0 else None
+        title = first_item['name'] if first_item else None
+
+        user_info = request_data.get('user', {})
+        user_name = user_info.get('name', '')
+        user_contact = user_info.get('contact', '')
+
         fraud_future = executor.submit(
             detect_fraud,
             request_data['creditCard']['number'],
@@ -63,14 +87,14 @@ def checkout():
         )
         transaction_future = executor.submit(
             verify_transaction,
-            request_data['title'],
-            request_data['user'],
+            title,
+            user_name,  
             request_data['creditCard']
         )
         suggestions_future = executor.submit(
             suggestions,
-            request_data['title'],
-            request_data['author']
+            title,
+            ''  
         )
 
         responses['fraud'] = fraud_future.result()
@@ -78,19 +102,15 @@ def checkout():
         responses['suggestions'] = suggestions_future.result()
 
     # Process responses
-    if responses['fraud'][0]:  # is_fraud
-        order_status = 'Order Rejected due to fraud detection'
-        suggested_books = []
-    elif not responses['transaction'][0]:  # is_valid
-        order_status = 'Order Rejected due to transaction verification failure'
-        suggested_books = []
-    else:
+    if not responses['fraud'][0] and responses['transaction'][0]:  # if not fraud and transaction is valid
         order_status = 'Order Approved'
-        suggested_books = [{'title': book.title, 'author': book.author} for book in responses['suggestions']]
+        suggested_books = [{'title': title} for title in responses['suggestions']]
+    else:
+        order_status = 'Order Rejected'  
+        suggested_books = []  
 
     # Construct the response
     response = {
-        'orderId': request_data['orderId'],
         'status': order_status,
         'suggestedBooks': suggested_books if order_status == 'Order Approved' else []
     }

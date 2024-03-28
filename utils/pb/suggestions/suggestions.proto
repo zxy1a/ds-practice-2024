@@ -12,5 +12,5 @@ message SuggestionsRequest {
 }
 
 message SuggestionsResponse {
-    repeated string title = 1;
+    repeated string titles = 1;
 }

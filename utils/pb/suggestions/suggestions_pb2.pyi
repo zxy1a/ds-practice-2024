@@ -14,7 +14,7 @@ class SuggestionsRequest(_message.Message):
     def __init__(self, title: _Optional[str] = ..., author: _Optional[str] = ...) -> None: ...
 
 class SuggestionsResponse(_message.Message):
-    __slots__ = ("title",)
-    TITLE_FIELD_NUMBER: _ClassVar[int]
-    title: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, title: _Optional[_Iterable[str]] = ...) -> None: ...
+    __slots__ = ("titles",)
+    TITLES_FIELD_NUMBER: _ClassVar[int]
+    titles: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, titles: _Optional[_Iterable[str]] = ...) -> None: ...

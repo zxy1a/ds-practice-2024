@@ -21,7 +21,7 @@ class TransactionVerificationServiceImpl(transaction_verification_pb2_grpc.Trans
 
         card = request.creditCard
 
-        card_number = card.replace(" ", "").replace("-", "")
+        card_number = card.number.replace(" ", "").replace("-", "")
         if len(card_number) == 16 and card_number.isdigit():
             logging.info(f"Card number is valid")
             return transaction_verification_pb2.TransactionVerificationResponse(is_valid=True, message="Approved")

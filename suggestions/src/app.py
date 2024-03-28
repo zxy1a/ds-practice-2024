@@ -27,7 +27,7 @@ class SuggestionsServiceImpl(suggestions_pb2_grpc.SuggestionsServicer):
             "Pride and Prejudice",
             "The Catcher in the Rye"
         ]
-        return suggestions_pb2.SuggestionsResponse(bookTitles=book_titles)
+        return suggestions_pb2.SuggestionsResponse(titles=book_titles)
 
 
 def serve():
