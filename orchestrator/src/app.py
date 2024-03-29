@@ -2,7 +2,8 @@ import sys
 import os
 import grpc
 import logging
-from flask_cors import CORS
+import uuid
+
 FILE = __file__ if '__file__' in globals() else os.getenv("PYTHONFILE", "")
 utils_path_fraud = os.path.abspath(os.path.join(FILE, '../../../utils/pb/fraud_detection'))
 sys.path.insert(0, utils_path_fraud)
@@ -12,12 +13,12 @@ sys.path.insert(0, utils_path_transactionverfication)
 
 utils_path_suggestions = os.path.abspath(os.path.join(FILE, '../../../utils/pb/suggestions'))
 sys.path.insert(0, utils_path_suggestions)
+from flask_cors import CORS
 from utils.pb.fraud_detection import fraud_detection_pb2_grpc, fraud_detection_pb2
 from utils.pb.suggestions import suggestions_pb2_grpc, suggestions_pb2
 from utils.pb.transaction_verification import transaction_verification_pb2_grpc, transaction_verification_pb2
 from flask import Flask, request, jsonify
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from concurrent import futures
+from concurrent.futures import ThreadPoolExecutor
 
 
 # Establish gRPC connection
@@ -36,12 +37,12 @@ def verify_transaction(title, user, credit_card):
         credit_card_message = transaction_verification_pb2.CreditCard(
             number=credit_card['number'],
             expirationDate=credit_card['expirationDate'],
-            cvv=credit_card.get('cvv', '')  
+            cvv=credit_card.get('cvv', '')
         )
         # Construct User message
         user_message = transaction_verification_pb2.User(
             name=user,
-            contact=''  
+            contact=''
         )
         response = stub.VerifyTransaction(
             transaction_verification_pb2.TransactionVerificationRequest(
@@ -71,6 +72,8 @@ CORS(app)
 def checkout():
     request_data = request.json
     responses = {}
+    order_id = str(uuid.uuid4())
+
     with ThreadPoolExecutor(max_workers=3) as executor:
 
         first_item = request_data['items'][0] if 'items' in request_data and len(request_data['items']) > 0 else None
@@ -88,13 +91,13 @@ def checkout():
         transaction_future = executor.submit(
             verify_transaction,
             title,
-            user_name,  
+            user_name,
             request_data['creditCard']
         )
         suggestions_future = executor.submit(
             suggestions,
             title,
-            ''  
+            ''
         )
 
         responses['fraud'] = fraud_future.result()
@@ -106,11 +109,12 @@ def checkout():
         order_status = 'Order Approved'
         suggested_books = [{'title': title} for title in responses['suggestions']]
     else:
-        order_status = 'Order Rejected'  
-        suggested_books = []  
+        order_status = 'Order Rejected'
+        suggested_books = []
 
-    # Construct the response
+        # Construct the response
     response = {
+        'orderId': order_id,
         'status': order_status,
         'suggestedBooks': suggested_books if order_status == 'Order Approved' else []
     }

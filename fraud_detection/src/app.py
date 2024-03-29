@@ -23,7 +23,6 @@ class FraudDetectionServiceImpl(fraud_detection_pb2_grpc.FraudDetectionServicer)
     def FraudDetection(self, request, context):
         expiry_date = datetime.datetime.strptime(request.expirationDate, "%m/%y")
         current_date = datetime.datetime.now()
-        # six_months_later = current_date + datetime.timedelta(days=180)
         if expiry_date < current_date:
             logging.info("Transaction detected as a fraud")
             return fraud_detection_pb2.FraudDetectionResponse(is_fraud=True, reason="Card is expired")
