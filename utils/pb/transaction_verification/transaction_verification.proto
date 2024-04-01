@@ -3,8 +3,8 @@ syntax = "proto3";
 package transaction_verification;
 
 service TransactionVerification {
-    rpc VerifyTransaction(TransactionVerificationRequest) returns (TransactionVerificationResponse) {}
     rpc VerifyCreditCardFormat(VerifyCreditCardFormatRequest) returns (VerifyCreditCardFormatResponse) {}
+    rpc VerifyMandatoryUserData(VerifyMandatoryUserDataRequest) returns (VerifyMandatoryUserDataResponse) {}
 }
 
 message User {
@@ -44,18 +44,6 @@ message VerifyCreditCardFormatRequest {
 }
 
 message VerifyCreditCardFormatResponse {
-    bool is_valid = 1;
-    string message = 2;
-    VectorClock vector_clock = 3;
-}
-
-message VerifyOrderItemsRequest {
-    string orderID = 1;
-    repeated string itemTitles = 2; // List of order item titles to verify they are not empty
-    VectorClock vector_clock = 3;
-}
-
-message VerifyOrderItemsResponse {
     bool is_valid = 1;
     string message = 2;
     VectorClock vector_clock = 3;

@@ -1,7 +1,7 @@
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
-from typing import ClassVar as _ClassVar, Iterable as _Iterable, Mapping as _Mapping, Optional as _Optional, Union as _Union
+from typing import ClassVar as _ClassVar, Mapping as _Mapping, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
@@ -73,26 +73,6 @@ class VerifyCreditCardFormatRequest(_message.Message):
     def __init__(self, orderID: _Optional[str] = ..., creditCard: _Optional[_Union[CreditCard, _Mapping]] = ..., vector_clock: _Optional[_Union[VectorClock, _Mapping]] = ...) -> None: ...
 
 class VerifyCreditCardFormatResponse(_message.Message):
-    __slots__ = ("is_valid", "message", "vector_clock")
-    IS_VALID_FIELD_NUMBER: _ClassVar[int]
-    MESSAGE_FIELD_NUMBER: _ClassVar[int]
-    VECTOR_CLOCK_FIELD_NUMBER: _ClassVar[int]
-    is_valid: bool
-    message: str
-    vector_clock: VectorClock
-    def __init__(self, is_valid: bool = ..., message: _Optional[str] = ..., vector_clock: _Optional[_Union[VectorClock, _Mapping]] = ...) -> None: ...
-
-class VerifyOrderItemsRequest(_message.Message):
-    __slots__ = ("orderID", "itemTitles", "vector_clock")
-    ORDERID_FIELD_NUMBER: _ClassVar[int]
-    ITEMTITLES_FIELD_NUMBER: _ClassVar[int]
-    VECTOR_CLOCK_FIELD_NUMBER: _ClassVar[int]
-    orderID: str
-    itemTitles: _containers.RepeatedScalarFieldContainer[str]
-    vector_clock: VectorClock
-    def __init__(self, orderID: _Optional[str] = ..., itemTitles: _Optional[_Iterable[str]] = ..., vector_clock: _Optional[_Union[VectorClock, _Mapping]] = ...) -> None: ...
-
-class VerifyOrderItemsResponse(_message.Message):
     __slots__ = ("is_valid", "message", "vector_clock")
     IS_VALID_FIELD_NUMBER: _ClassVar[int]
     MESSAGE_FIELD_NUMBER: _ClassVar[int]
