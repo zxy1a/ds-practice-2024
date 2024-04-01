@@ -14,6 +14,7 @@ sys.path.insert(0, utils_path_transactionverfication)
 utils_path_suggestions = os.path.abspath(os.path.join(FILE, '../../../utils/pb/suggestions'))
 sys.path.insert(0, utils_path_suggestions)
 from flask_cors import CORS
+from utils.vector_clock import VectorClock
 from utils.pb.fraud_detection import fraud_detection_pb2_grpc, fraud_detection_pb2
 from utils.pb.suggestions import suggestions_pb2_grpc, suggestions_pb2
 from utils.pb.transaction_verification import transaction_verification_pb2_grpc, transaction_verification_pb2
@@ -29,51 +30,57 @@ def extract_order_details(request_data):
     return title, user_name, credit_card
 
 def update_vector_clock(original_clock, response_clock):
-    for key, value in response_clock.items():
-        original_clock[key] = max(original_clock.get(key, 0), value)
-    return original_clock
+    original_clock.merge(response_clock)
+    return original_clock.get_clock()
 
 def initialize_vector_clock():
-    return {"orchestrator": 1}
+    return VectorClock({"orchestrator": 1})
 
 # Establish gRPC connection
-def detect_fraud(user, credit_card, order_id, vector_clock):
+def check_user_data_for_fraud(user, order_id, vector_clock):
     with grpc.insecure_channel('fraud_detection:50051') as channel:
         stub = fraud_detection_pb2_grpc.FraudDetectionStub(channel)
+        vector_clock_proto = vector_clock.to_proto(fraud_detection_pb2.VectorClock)
         
-        # Prepare the user data for the CheckUserDataForFraud call
         user_data_request = fraud_detection_pb2.CheckUserDataRequest(
             orderID=order_id,
             user=fraud_detection_pb2.User(
                 name=user['name'],
-                contact=user.get('contact', ''),  
-                address=user.get('address', '')  
+                contact=user.get('contact', ''),
+                address=user.get('address', '')
             ),
-            vector_clock=fraud_detection_pb2.VectorClock(entries=vector_clock)
+            vector_clock=vector_clock_proto
         )
-        user_data_response = stub.CheckUserDataForFraud(user_data_request)
+        response = stub.CheckUserDataForFraud(user_data_request)
+        vector_clock.merge(VectorClock.from_proto(response.vector_clock).get_clock())
         
-        # If user data is flagged as fraud, return immediately
-        if user_data_response.is_fraud:
-            return True, user_data_response.reason, user_data_response.vector_clock.entries
+        return response.is_fraud, response.reason, vector_clock.get_clock()
+    
+def check_credit_card_for_fraud(credit_card, order_id, vector_clock):
+    with grpc.insecure_channel('fraud_detection:50051') as channel:
+        stub = fraud_detection_pb2_grpc.FraudDetectionStub(channel)
+        vector_clock_proto = vector_clock.to_proto(fraud_detection_pb2.VectorClock)
         
-        # Prepare the credit card data for the CheckCreditCardForFraud call
-        credit_card_data_request = fraud_detection_pb2.FraudDetectionRequest(
+        credit_card_data_request = fraud_detection_pb2.CheckCreditCardForFraudRequest(
             orderID=order_id,
-            number=credit_card['number'],
-            expirationDate=credit_card['expirationDate'],
-            vector_clock=fraud_detection_pb2.VectorClock(entries=vector_clock)
+            creditCard=fraud_detection_pb2.CreditCard(
+                number=credit_card['number'],
+                expirationDate=credit_card['expirationDate']
+            ),
+            vector_clock=vector_clock_proto
         )
-        credit_card_data_response = stub.CheckCreditCardForFraud(credit_card_data_request)
+        response = stub.CheckCreditCardForFraud(credit_card_data_request)
+        vector_clock.merge(VectorClock.from_proto(response.vector_clock).get_clock())
         
-        # Return the result of the credit card fraud check with the updated vector clock
-        updated_vector_clock = {key: value for key, value in credit_card_data_response.vector_clock.entries.items()}
-        return credit_card_data_response.is_fraud, credit_card_data_response.reason, updated_vector_clock
+        return response.is_fraud, response.reason, vector_clock.get_clock()
 
 
-def verify_transaction(request_data, order_id, vector_clock):
+def verify_credit_card_format(request_data, order_id, vector_clock):
     with grpc.insecure_channel('transaction_verification:50052') as channel:
         stub = transaction_verification_pb2_grpc.TransactionVerificationStub(channel)
+        
+        # Convert the VectorClock instance to the protobuf format for the gRPC call
+        vector_clock_proto = vector_clock.to_proto(transaction_verification_pb2.VectorClock)
         
         # Constructing the CreditCard message
         credit_card_message = transaction_verification_pb2.CreditCard(
@@ -82,6 +89,29 @@ def verify_transaction(request_data, order_id, vector_clock):
             cvv=request_data['creditCard']['cvv']
         )
         
+        # Preparing the VerifyCreditCardFormatRequest
+        verify_credit_card_format_request = transaction_verification_pb2.VerifyCreditCardFormatRequest(
+            orderID=order_id,
+            creditCard=credit_card_message,
+            vector_clock=vector_clock_proto
+        )
+        
+        # Sending the request to the TransactionVerification service
+        response = stub.VerifyCreditCardFormat(verify_credit_card_format_request)
+        
+        # Update the vector clock with the response
+        response_clock = VectorClock.from_proto(response.vector_clock)
+        updated_vector_clock = vector_clock.merge(response_clock.get_clock())
+        
+        return response.is_valid, response.message, updated_vector_clock
+    
+def verify_mandatory_user_data(request_data, order_id, vector_clock):
+    with grpc.insecure_channel('transaction_verification:50052') as channel:
+        stub = transaction_verification_pb2_grpc.TransactionVerificationStub(channel)
+        
+        # Convert the VectorClock instance to the protobuf format for the gRPC call
+        vector_clock_proto = vector_clock.to_proto(transaction_verification_pb2.VectorClock)
+        
         # Constructing the User message
         user_message = transaction_verification_pb2.User(
             name=request_data['user']['name'],
@@ -89,39 +119,43 @@ def verify_transaction(request_data, order_id, vector_clock):
             address=f"{request_data['billingAddress']['street']}, {request_data['billingAddress']['city']}, {request_data['billingAddress']['state']}, {request_data['billingAddress']['zip']}, {request_data['billingAddress']['country']}"
         )
         
-        # Preparing the TransactionVerificationRequest
-        transaction_verification_request = transaction_verification_pb2.TransactionVerificationRequest(
+        # Preparing the VerifyMandatoryUserDataRequest
+        verify_mandatory_user_data_request = transaction_verification_pb2.VerifyMandatoryUserDataRequest(
             orderID=order_id,
-            title=request_data['items'][0]['name'] if request_data['items'] else 'No title',  
             user=user_message,
-            creditCard=credit_card_message,
-            vector_clock=transaction_verification_pb2.VectorClock(entries=vector_clock)
+            vector_clock=vector_clock_proto
         )
         
         # Sending the request to the TransactionVerification service
-        response = stub.VerifyTransaction(transaction_verification_request)
+        response = stub.VerifyMandatoryUserData(verify_mandatory_user_data_request)
         
-        # Updating the vector clock with the response
-        updated_vector_clock = {key: value for key, value in response.vector_clock.entries.items()}
+        # Update the vector clock with the response
+        response_clock = VectorClock.from_proto(response.vector_clock)
+        updated_vector_clock = vector_clock.merge(response_clock.get_clock())
         
         return response.is_valid, response.message, updated_vector_clock
-
 
 def suggestions(title, author, order_id, vector_clock):
     with grpc.insecure_channel('suggestions:50053') as channel:
         stub = suggestions_pb2_grpc.SuggestionsStub(channel)
-        vector_clock_entries = {key: suggestions_pb2.VectorClock.Entry(value=value) for key, value in vector_clock.items()}
+
+        # Convert the VectorClock instance to the protobuf format for the gRPC call
+        vector_clock_proto = vector_clock.to_proto(suggestions_pb2.VectorClock)
+
         request = suggestions_pb2.SuggestionsRequest(
             orderID=order_id,
             title=title,
             author=author,
-            vector_clock=suggestions_pb2.VectorClock(entries=vector_clock_entries)
+            vector_clock=vector_clock_proto
         )
         response = stub.BookSuggestions(request)
-        # Convert the vector clock back to a dictionary
-        updated_vector_clock = {key: value for key, value in response.vector_clock.entries.items()}
+
+        # Update the vector clock with the response
+        response_clock = VectorClock.from_proto(response.vector_clock)
+        vector_clock.merge(response_clock.get_clock())
+        
         # Return the list of suggested titles and the updated vector clock
-        return response.titles, updated_vector_clock
+        return response.titles, vector_clock.get_clock()
 
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -140,128 +174,54 @@ def checkout():
     order_status = 'Order Pending'
     suggested_books = []
 
-    """
-    with ThreadPoolExecutor(max_workers=3) as executor:
+    # Event a: Verify mandatory user data
+    vector_clock.increment("transaction_verification")
+    is_valid, message, vc_after_a = verify_mandatory_user_data(request_data, order_id, vector_clock)
+    if not is_valid:
+        return jsonify({"error": "Mandatory user data is missing", "message": message}), 400
+    vector_clock.merge(vc_after_a)
 
-        first_item = request_data['items'][0] if 'items' in request_data and len(request_data['items']) > 0 else None
-        title = first_item['name'] if first_item else None
+    # Event b: Verify credit card format
+    vector_clock.increment("transaction_verification")
+    is_valid, message, vc_after_b = verify_credit_card_format(request_data, order_id, vector_clock)
+    if not is_valid:
+        return jsonify({"error": "Credit card format is incorrect", "message": message}), 400
+    vector_clock.merge(vc_after_b)
 
-        user_info = request_data.get('user', {})
-        user_name = user_info.get('name', '')
-        user_contact = user_info.get('contact', '')
+    # Event d: Check credit card data for fraud
+    vector_clock.increment("fraud_detection")
+    is_fraud, reason, vc_after_d = check_credit_card_for_fraud(request_data.get('creditCard', {}), order_id, vector_clock)
+    if is_fraud:
+        return jsonify({"error": "Fraud detected in credit card data", "reason": reason}), 400
+    vector_clock.merge(vc_after_d)
 
-        fraud_future = executor.submit(
-            detect_fraud,
-            request_data['creditCard']['number'],
-            request_data['creditCard']['expirationDate']
-        )
-        transaction_future = executor.submit(
-            verify_transaction,
-            title,
-            user_name,
-            request_data['creditCard']
-        )
-        suggestions_future = executor.submit(
-            suggestions,
-            title,
-            ''
-        )
+    # Event c: Check user data for fraud
+    vector_clock.increment("fraud_detection")
+    is_fraud, reason, vc_after_c = check_user_data_for_fraud(request_data.get('user', {}), order_id, vector_clock)
+    if is_fraud:
+        return jsonify({"error": "Fraud detected in user data", "reason": reason}), 400
+    vector_clock.merge(vc_after_c)
 
-        responses['fraud'] = fraud_future.result()
-        responses['transaction'] = transaction_future.result()
-        responses['suggestions'] = suggestions_future.result()
-
-    # Process responses
-    if not responses['fraud'][0] and responses['transaction'][0]:  # if not fraud and transaction is valid
+    # Event e: Generate book suggestions
+    vector_clock.increment("suggestions")
+    title, author = extract_order_details(request_data)[:2]  # Assuming extract_order_details returns title and author among other details
+    suggested_titles, vc_after_e = suggestions(title, author, order_id, vector_clock)
+    if suggested_titles:
+        suggested_books = [{'title': title} for title in suggested_titles]
         order_status = 'Order Approved'
-        suggested_books = [{'title': title} for title in responses['suggestions']]
     else:
         order_status = 'Order Rejected'
-        suggested_books = []
-    """
-
-    with ThreadPoolExecutor(max_workers=3) as executor:
-        futures = []
-
-        # Start with transaction verification
-        future_tv = executor.submit(
-            verify_transaction,
-            request_data,
-            order_id,
-            vector_clock
-        )
-        futures.append(future_tv)
-
-        # Wait for transaction verification to complete before proceeding
-        for future in as_completed(futures):
-            is_valid, message, updated_vc = future.result()
-            if not is_valid:
-                order_status = 'Order Rejected'
-                break  # Exit the loop early if transaction is not valid
-            vector_clock = update_vector_clock(vector_clock, updated_vc)
-            futures = []  # Reset futures list for the next set of tasks
-
-            # Proceed with fraud detection for user data
-            future_fd_user = executor.submit(
-                detect_fraud,
-                request_data['user'],
-                request_data.get('creditCard', {}),
-                order_id,
-                vector_clock
-            )
-            futures.append(future_fd_user)
-
-            # Wait for user data fraud check to complete
-            for future in as_completed(futures):
-                is_fraud, reason, updated_vc = future.result()
-                if is_fraud:
-                    order_status = 'Order Rejected'
-                    break  # Exit the loop early if fraud is detected
-                vector_clock = update_vector_clock(vector_clock, updated_vc)
-                futures = []  # Reset futures list for the next set of tasks
-
-                # Now verify credit card format and check for fraud
-                future_cc_format = executor.submit(
-                    verify_credit_card_format,
-                    request_data['creditCard'],
-                    order_id,
-                    vector_clock
-                )
-                future_fd_cc = executor.submit(
-                    check_credit_card_for_fraud,
-                    request_data['creditCard'],
-                    order_id,
-                    vector_clock
-                )
-                futures.extend([future_cc_format, future_fd_cc])
-
-                # Wait for both to complete
-                for future in as_completed(futures):
-                    result = future.result()
-                    if not result[0]:
-                        order_status = 'Order Rejected'
-                        break  # Exit the loop early if any check fails
-                    vector_clock = update_vector_clock(vector_clock, result[2])
-
-                if order_status == 'Order Rejected':
-                    break  # Exit the outer loop if order is rejected
-
-                # Finally, generate book suggestions
-                titles, updated_vc = generate_book_suggestions(
-                    request_data['items'][0]['name'],  # Assuming there's at least one item
-                    order_id,
-                    vector_clock
-                )
-                vector_clock = update_vector_clock(vector_clock, updated_vc)
-                suggested_books = titles
-                order_status = 'Order Approved'
+    vector_clock.merge(vc_after_e)
 
     # Construct the response
     response = {
         'orderId': order_id,
         'status': order_status,
-        'suggestedBooks': suggested_books if order_status == 'Order Approved' else []
+        'vectorClock': vector_clock.get_clock(),  # Include the final state of the vector clock
+        'suggestedBooks': suggested_books if order_status == 'Order Approved' else [],
+        'message': "Order processed successfully" if order_status == 'Order Approved' else "Order processing failed"
     }
+
     return jsonify(response)
 
 

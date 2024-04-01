@@ -11,6 +11,7 @@ FILE = __file__ if '__file__' in globals() else os.getenv("PYTHONFILE", "")
 utils_path = os.path.abspath(os.path.join(FILE, '../../../utils/pb/suggestions'))
 sys.path.insert(0, utils_path)
 
+from utils.vector_clock import VectorClock
 from utils.pb.suggestions import suggestions_pb2, suggestions_pb2_grpc
 
 # Configure logging
@@ -20,12 +21,10 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 class SuggestionsServiceImpl(suggestions_pb2_grpc.SuggestionsServicer):
     def BookSuggestions(self, request, context):
 
-        # Extract vector clock from request
-        vector_clock = request.vector_clock
-        # Update vector clock for this service
-        vector_clock["suggestions_service"] = vector_clock.get("suggestions_service", 0) + 1
+        vc = VectorClock.from_proto(request.vector_clock)
+        vc.increment("suggestions_service")
 
-        logging.info(f"OrderID {request.orderID} - Current Vector Clock: {dict(vector_clock.entries)}")
+        logging.info(f"OrderID {request.orderID} - Current Vector Clock: {vc.get_clock()}")
 
         # Predefined list of book titles to suggest
         book_titles = [
@@ -36,13 +35,12 @@ class SuggestionsServiceImpl(suggestions_pb2_grpc.SuggestionsServicer):
             "The Catcher in the Rye"
         ]
 
-        # Construct the updated VectorClock message
-        updated_vector_clock = suggestions_pb2.VectorClock(entries=vector_clock)
+        updated_vector_clock = vc.to_proto(suggestions_pb2.VectorClock)
 
          # Return response with updated vector clock
         return suggestions_pb2.SuggestionsResponse(
             titles=book_titles,
-            vector_clock=updated_vector_clock  # Include the updated vector clock in the response
+            vector_clock=updated_vector_clock 
         )
 
 
