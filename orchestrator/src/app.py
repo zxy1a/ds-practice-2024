@@ -174,44 +174,65 @@ def checkout():
     order_status = 'Order Pending'
     suggested_books = []
 
+    # Placeholder for the previous vector clock state
+    previous_vc = None
+
     # Event a: Verify mandatory user data
-    vector_clock.increment("transaction_verification")
-    is_valid, message, vc_after_a = verify_mandatory_user_data(request_data, order_id, vector_clock)
-    if not is_valid:
-        return jsonify({"error": "Mandatory user data is missing", "message": message}), 400
-    vector_clock.merge(vc_after_a)
+    if previous_vc is None or vector_clock.is_after(previous_vc):
+        is_valid, message, vc_after_a = verify_mandatory_user_data(request_data, order_id, vector_clock)
+        if not is_valid:
+            return jsonify({"error": "Mandatory user data is missing", "message": message}), 400
+        vector_clock = VectorClock(vc_after_a)  # Update the vector clock
+    else:
+        return jsonify({"error": "Event sequence error: Mandatory user data verification"}), 500
+
+    # Update previous_vc for the next check
+    previous_vc = vector_clock.get_clock()
 
     # Event b: Verify credit card format
-    vector_clock.increment("transaction_verification")
-    is_valid, message, vc_after_b = verify_credit_card_format(request_data, order_id, vector_clock)
-    if not is_valid:
-        return jsonify({"error": "Credit card format is incorrect", "message": message}), 400
-    vector_clock.merge(vc_after_b)
+    # Before proceeding, ensure the vector clock has advanced from the previous state
+    if vector_clock.is_after(previous_vc):
+        is_valid, message, vc_after_b = verify_credit_card_format(request_data, order_id, vector_clock)
+        if not is_valid:
+            return jsonify({"error": "Credit card format is incorrect", "message": message}), 400
+        vector_clock = VectorClock(vc_after_b)  # Update the vector clock
+    else:
+        return jsonify({"error": "Event sequence error: Credit card format verification"}), 500
+
+    # Update previous_vc for the next check
+    previous_vc = vector_clock.get_clock()
 
     # Event d: Check credit card data for fraud
-    vector_clock.increment("fraud_detection")
-    is_fraud, reason, vc_after_d = check_credit_card_for_fraud(request_data.get('creditCard', {}), order_id, vector_clock)
-    if is_fraud:
-        return jsonify({"error": "Fraud detected in credit card data", "reason": reason}), 400
-    vector_clock.merge(vc_after_d)
+    if vector_clock.is_after(previous_vc):
+        is_fraud, reason, vc_after_d = check_credit_card_for_fraud(request_data.get('creditCard', {}), order_id, vector_clock)
+        if is_fraud:
+            return jsonify({"error": "Fraud detected in credit card data", "reason": reason}), 400
+        vector_clock = VectorClock(vc_after_d)  # Update the vector clock
+    else:
+        return jsonify({"error": "Event sequence error: Credit card data fraud check"}), 500
+    previous_vc = vector_clock.get_clock()  # Update previous_vc for the next check
 
     # Event c: Check user data for fraud
-    vector_clock.increment("fraud_detection")
-    is_fraud, reason, vc_after_c = check_user_data_for_fraud(request_data.get('user', {}), order_id, vector_clock)
-    if is_fraud:
-        return jsonify({"error": "Fraud detected in user data", "reason": reason}), 400
-    vector_clock.merge(vc_after_c)
+    if vector_clock.is_after(previous_vc):
+        is_fraud, reason, vc_after_c = check_user_data_for_fraud(request_data.get('user', {}), order_id, vector_clock)
+        if is_fraud:
+            return jsonify({"error": "Fraud detected in user data", "reason": reason}), 400
+        vector_clock = VectorClock(vc_after_c)  # Update the vector clock
+    else:
+        return jsonify({"error": "Event sequence error: User data fraud check"}), 500
+    previous_vc = vector_clock.get_clock()  # Update previous_vc for the next check
 
     # Event e: Generate book suggestions
-    vector_clock.increment("suggestions")
-    title, author = extract_order_details(request_data)[:2]  # Assuming extract_order_details returns title and author among other details
-    suggested_titles, vc_after_e = suggestions(title, author, order_id, vector_clock)
-    if suggested_titles:
-        suggested_books = [{'title': title} for title in suggested_titles]
-        order_status = 'Order Approved'
+    if vector_clock.is_after(previous_vc):
+        title, author, _ = extract_order_details(request_data)  # Assuming extract_order_details returns title, author, and credit card
+        suggested_titles, vc_after_e = suggestions(title, author, order_id, vector_clock)
+        if suggested_titles:
+            suggested_books = [{'title': title} for title in suggested_titles]
+            order_status = 'Order Approved'
+        vector_clock = VectorClock(vc_after_e)  # Update the vector clock
     else:
-        order_status = 'Order Rejected'
-    vector_clock.merge(vc_after_e)
+        return jsonify({"error": "Event sequence error: Generating book suggestions"}), 500
+    previous_vc = vector_clock.get_clock()  # Update previous_vc for the next check
 
     # Construct the response
     response = {
