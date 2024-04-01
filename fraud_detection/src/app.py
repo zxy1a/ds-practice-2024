@@ -20,15 +20,52 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 
 class FraudDetectionServiceImpl(fraud_detection_pb2_grpc.FraudDetectionServicer):
-    def FraudDetection(self, request, context):
+
+    def CheckUserDataForFraud(self, request, context):
+        vector_clock = request.vector_clock.entries
+        vector_clock["fraud_detection_service"] = vector_clock.get("fraud_detection_service", 0) + 1
+
+        # Reject if user name is empty or contact is missing
+        if not request.user.name or not request.user.contact:
+            return fraud_detection_pb2.CheckUserDataResponse(
+                is_fraud=True,
+                reason="Missing user name or contact",
+                vector_clock=fraud_detection_pb2.VectorClock(entries=vector_clock)
+            )
+
+        return fraud_detection_pb2.CheckUserDataResponse(
+            is_fraud=False,
+            reason="User data looks good",
+            vector_clock=fraud_detection_pb2.VectorClock(entries=vector_clock)
+        )
+
+    def CheckCreditCardForFraud(self, request, context):
+
+        # Extract vector clock from request
+        vector_clock_entries = dict(request.vector_clock.entries)
+        # Update vector clock for this service
+        vector_clock_entries["fraud_detection_service"] = vector_clock_entries.get("fraud_detection_service", 0) + 1
+
+        logging.info(f"OrderID {request.orderID} - Current Vector Clock: {vector_clock_entries}")
+
         expiry_date = datetime.datetime.strptime(request.expirationDate, "%m/%y")
         current_date = datetime.datetime.now()
         if expiry_date < current_date:
-            logging.info("Transaction detected as a fraud")
-            return fraud_detection_pb2.FraudDetectionResponse(is_fraud=True, reason="Card is expired")
+            logging.info("Transaction detected as a fraud due to expired card")
+            # Include the updated vector clock in the response
+            return fraud_detection_pb2.FraudDetectionResponse(
+                is_fraud=True, 
+                reason="Card is expired",
+                vector_clock=fraud_detection_pb2.VectorClock(entries=vector_clock_entries)
+            )
         else:
             logging.info(f"Transaction detected no fraud")
-            return fraud_detection_pb2.FraudDetectionResponse(is_fraud=False, reason="Approved")
+            # Include the updated vector clock in the response
+            return fraud_detection_pb2.FraudDetectionResponse(
+                is_fraud=False, 
+                reason="Approved",
+                vector_clock=fraud_detection_pb2.VectorClock(entries=vector_clock_entries)
+            )
 
 
 def serve():

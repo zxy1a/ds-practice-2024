@@ -19,6 +19,14 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 class SuggestionsServiceImpl(suggestions_pb2_grpc.SuggestionsServicer):
     def BookSuggestions(self, request, context):
+
+        # Extract vector clock from request
+        vector_clock = request.vector_clock
+        # Update vector clock for this service
+        vector_clock["suggestions_service"] = vector_clock.get("suggestions_service", 0) + 1
+
+        logging.info(f"OrderID {request.orderID} - Current Vector Clock: {dict(vector_clock.entries)}")
+
         # Predefined list of book titles to suggest
         book_titles = [
             "The Great Gatsby",
@@ -27,7 +35,15 @@ class SuggestionsServiceImpl(suggestions_pb2_grpc.SuggestionsServicer):
             "Pride and Prejudice",
             "The Catcher in the Rye"
         ]
-        return suggestions_pb2.SuggestionsResponse(titles=book_titles)
+
+        # Construct the updated VectorClock message
+        updated_vector_clock = suggestions_pb2.VectorClock(entries=vector_clock)
+
+         # Return response with updated vector clock
+        return suggestions_pb2.SuggestionsResponse(
+            titles=book_titles,
+            vector_clock=updated_vector_clock  # Include the updated vector clock in the response
+        )
 
 
 def serve():

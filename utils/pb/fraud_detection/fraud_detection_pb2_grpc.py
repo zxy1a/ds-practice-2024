@@ -14,18 +14,31 @@ class FraudDetectionStub(object):
         Args:
             channel: A grpc.Channel.
         """
-        self.FraudDetection = channel.unary_unary(
-                '/fraud_detection.FraudDetection/FraudDetection',
+        self.CheckCreditCardForFraud = channel.unary_unary(
+                '/fraud_detection.FraudDetection/CheckCreditCardForFraud',
                 request_serializer=fraud__detection__pb2.FraudDetectionRequest.SerializeToString,
                 response_deserializer=fraud__detection__pb2.FraudDetectionResponse.FromString,
+                )
+        self.CheckUserDataForFraud = channel.unary_unary(
+                '/fraud_detection.FraudDetection/CheckUserDataForFraud',
+                request_serializer=fraud__detection__pb2.CheckUserDataRequest.SerializeToString,
+                response_deserializer=fraud__detection__pb2.CheckUserDataResponse.FromString,
                 )
 
 
 class FraudDetectionServicer(object):
     """Missing associated documentation comment in .proto file."""
 
-    def FraudDetection(self, request, context):
-        """Missing associated documentation comment in .proto file."""
+    def CheckCreditCardForFraud(self, request, context):
+        """Checks credit card data for fraud
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def CheckUserDataForFraud(self, request, context):
+        """Checks user data for fraud
+        """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
@@ -33,10 +46,15 @@ class FraudDetectionServicer(object):
 
 def add_FraudDetectionServicer_to_server(servicer, server):
     rpc_method_handlers = {
-            'FraudDetection': grpc.unary_unary_rpc_method_handler(
-                    servicer.FraudDetection,
+            'CheckCreditCardForFraud': grpc.unary_unary_rpc_method_handler(
+                    servicer.CheckCreditCardForFraud,
                     request_deserializer=fraud__detection__pb2.FraudDetectionRequest.FromString,
                     response_serializer=fraud__detection__pb2.FraudDetectionResponse.SerializeToString,
+            ),
+            'CheckUserDataForFraud': grpc.unary_unary_rpc_method_handler(
+                    servicer.CheckUserDataForFraud,
+                    request_deserializer=fraud__detection__pb2.CheckUserDataRequest.FromString,
+                    response_serializer=fraud__detection__pb2.CheckUserDataResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -49,7 +67,7 @@ class FraudDetection(object):
     """Missing associated documentation comment in .proto file."""
 
     @staticmethod
-    def FraudDetection(request,
+    def CheckCreditCardForFraud(request,
             target,
             options=(),
             channel_credentials=None,
@@ -59,8 +77,25 @@ class FraudDetection(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/fraud_detection.FraudDetection/FraudDetection',
+        return grpc.experimental.unary_unary(request, target, '/fraud_detection.FraudDetection/CheckCreditCardForFraud',
             fraud__detection__pb2.FraudDetectionRequest.SerializeToString,
             fraud__detection__pb2.FraudDetectionResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def CheckUserDataForFraud(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/fraud_detection.FraudDetection/CheckUserDataForFraud',
+            fraud__detection__pb2.CheckUserDataRequest.SerializeToString,
+            fraud__detection__pb2.CheckUserDataResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)

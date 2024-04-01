@@ -2,17 +2,46 @@ syntax = "proto3";
 
 package fraud_detection;
 
+message VectorClock {
+    map<string, int64> entries = 1;
+}
 
 service FraudDetection {
-    rpc FraudDetection (FraudDetectionRequest) returns (FraudDetectionResponse) {}
+    // Checks credit card data for fraud
+    rpc CheckCreditCardForFraud (FraudDetectionRequest) returns (FraudDetectionResponse) {}
+    // Checks user data for fraud
+    rpc CheckUserDataForFraud (CheckUserDataRequest) returns (CheckUserDataResponse) {}
 }
 
+message CheckUserDataRequest {
+    string orderID = 1;
+    User user = 2;
+    VectorClock vector_clock = 3;
+}
+
+message CheckUserDataResponse {
+    bool is_fraud = 1;
+    string reason = 2;
+    VectorClock vector_clock = 3;
+}
+
+// Renamed from FraudDetectionRequest to specifically indicate checking credit card for fraud
 message FraudDetectionRequest {
-    string number = 1;
-    string expirationDate = 2;
+    string orderID = 1;
+    string number = 2; // Credit card number
+    string expirationDate = 3; // Credit card expiration date
+    VectorClock vector_clock = 4;
 }
 
+// Response for checking credit card data for fraud
 message FraudDetectionResponse {
     bool is_fraud = 1;
     string reason = 2;
+    VectorClock vector_clock = 3;
+}
+
+message User {
+    string name = 1;
+    string contact = 2;
+    string address = 3;
 }

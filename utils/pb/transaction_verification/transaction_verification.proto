@@ -4,11 +4,17 @@ package transaction_verification;
 
 service TransactionVerification {
     rpc VerifyTransaction(TransactionVerificationRequest) returns (TransactionVerificationResponse) {}
+    rpc VerifyCreditCardFormat(VerifyCreditCardFormatRequest) returns (VerifyCreditCardFormatResponse) {}
 }
 
 message User {
     string name = 1;
     string contact = 2;
+    string address = 3;
+}
+
+message VectorClock {
+    map<string, int64> entries = 1;
 }
 
 message CreditCard {
@@ -18,13 +24,51 @@ message CreditCard {
 }
 
 message TransactionVerificationRequest {
-    string title = 1;
-    User user = 2;
-    CreditCard creditCard = 3;
+    string orderID = 1;
+    string title = 2;
+    User user = 3;
+    CreditCard creditCard = 4;
+    VectorClock vector_clock = 5;
 }
 
 message TransactionVerificationResponse {
     bool is_valid = 1;
     string message = 2;
+    VectorClock vector_clock = 3;
 }
 
+message VerifyCreditCardFormatRequest {
+    string orderID = 1;
+    CreditCard creditCard = 2;
+    VectorClock vector_clock = 3;
+}
+
+message VerifyCreditCardFormatResponse {
+    bool is_valid = 1;
+    string message = 2;
+    VectorClock vector_clock = 3;
+}
+
+message VerifyOrderItemsRequest {
+    string orderID = 1;
+    repeated string itemTitles = 2; // List of order item titles to verify they are not empty
+    VectorClock vector_clock = 3;
+}
+
+message VerifyOrderItemsResponse {
+    bool is_valid = 1;
+    string message = 2;
+    VectorClock vector_clock = 3;
+}
+
+message VerifyMandatoryUserDataRequest {
+    string orderID = 1;
+    User user = 2; // User data including name, contact, and address
+    VectorClock vector_clock = 3;
+}
+
+message VerifyMandatoryUserDataResponse {
+    bool is_valid = 1;
+    string message = 2;
+    VectorClock vector_clock = 3;
+}
