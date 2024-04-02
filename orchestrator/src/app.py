@@ -177,7 +177,7 @@ def checkout():
     # Placeholder for the previous vector clock state
     previous_vc = None
 
-    # Event a: Verify mandatory user data
+     # Event a: Verify mandatory user data
     if previous_vc is None or vector_clock.is_after(previous_vc):
         is_valid, message, vc_after_a = verify_mandatory_user_data(request_data, order_id, vector_clock)
         if not is_valid:
@@ -185,7 +185,7 @@ def checkout():
         vector_clock = VectorClock(vc_after_a)  # Update the vector clock
     else:
         return jsonify({"error": "Event sequence error: Mandatory user data verification"}), 500
-
+        
     # Update previous_vc for the next check
     previous_vc = vector_clock.get_clock()
 
