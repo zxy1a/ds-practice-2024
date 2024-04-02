@@ -30,6 +30,11 @@ class OrderQueueStub(object):
                 request_serializer=order__queue__pb2.ElectionRequest.SerializeToString,
                 response_deserializer=order__queue__pb2.ElectionResponse.FromString,
                 )
+        self.ClearCurrentLeader = channel.unary_unary(
+                '/orderqueue.OrderQueue/ClearCurrentLeader',
+                request_serializer=order__queue__pb2.ClearLeaderRequest.SerializeToString,
+                response_deserializer=order__queue__pb2.ClearLeaderResponse.FromString,
+                )
 
 
 class OrderQueueServicer(object):
@@ -54,6 +59,12 @@ class OrderQueueServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def ClearCurrentLeader(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_OrderQueueServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -71,6 +82,11 @@ def add_OrderQueueServicer_to_server(servicer, server):
                     servicer.ElectLeader,
                     request_deserializer=order__queue__pb2.ElectionRequest.FromString,
                     response_serializer=order__queue__pb2.ElectionResponse.SerializeToString,
+            ),
+            'ClearCurrentLeader': grpc.unary_unary_rpc_method_handler(
+                    servicer.ClearCurrentLeader,
+                    request_deserializer=order__queue__pb2.ClearLeaderRequest.FromString,
+                    response_serializer=order__queue__pb2.ClearLeaderResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -131,5 +147,22 @@ class OrderQueue(object):
         return grpc.experimental.unary_unary(request, target, '/orderqueue.OrderQueue/ElectLeader',
             order__queue__pb2.ElectionRequest.SerializeToString,
             order__queue__pb2.ElectionResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def ClearCurrentLeader(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/orderqueue.OrderQueue/ClearCurrentLeader',
+            order__queue__pb2.ClearLeaderRequest.SerializeToString,
+            order__queue__pb2.ClearLeaderResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)

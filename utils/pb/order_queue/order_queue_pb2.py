@@ -14,7 +14,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x11order_queue.proto\x12\norderqueue\"t\n\x0bVectorClock\x12\x35\n\x07\x65ntries\x18\x01 \x03(\x0b\x32$.orderqueue.VectorClock.EntriesEntry\x1a.\n\x0c\x45ntriesEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x03:\x02\x38\x01\"r\n\x0cOrderRequest\x12\x0f\n\x07orderId\x18\x01 \x01(\t\x12\x0e\n\x06userId\x18\x02 \x01(\t\x12\x12\n\nbookTitles\x18\x03 \x03(\t\x12-\n\x0cvector_clock\x18\x04 \x01(\x0b\x32\x17.orderqueue.VectorClock\"`\n\rOrderResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x0f\n\x07message\x18\x02 \x01(\t\x12-\n\x0cvector_clock\x18\x03 \x01(\x0b\x32\x17.orderqueue.VectorClock\"\x10\n\x0e\x44\x65queueRequest\"%\n\x0f\x45lectionRequest\x12\x12\n\nexecutorId\x18\x01 \x01(\t\"$\n\x10\x45lectionResponse\x12\x10\n\x08isLeader\x18\x01 \x01(\x08\x32\xdd\x01\n\nOrderQueue\x12@\n\x07\x45nqueue\x12\x18.orderqueue.OrderRequest\x1a\x19.orderqueue.OrderResponse\"\x00\x12\x41\n\x07\x44\x65queue\x12\x1a.orderqueue.DequeueRequest\x1a\x18.orderqueue.OrderRequest\"\x00\x12J\n\x0b\x45lectLeader\x12\x1b.orderqueue.ElectionRequest\x1a\x1c.orderqueue.ElectionResponse\"\x00\x62\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x11order_queue.proto\x12\norderqueue\"t\n\x0bVectorClock\x12\x35\n\x07\x65ntries\x18\x01 \x03(\x0b\x32$.orderqueue.VectorClock.EntriesEntry\x1a.\n\x0c\x45ntriesEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x03:\x02\x38\x01\"r\n\x0cOrderRequest\x12\x0f\n\x07orderId\x18\x01 \x01(\t\x12\x0e\n\x06userId\x18\x02 \x01(\t\x12\x12\n\nbookTitles\x18\x03 \x03(\t\x12-\n\x0cvector_clock\x18\x04 \x01(\x0b\x32\x17.orderqueue.VectorClock\"`\n\rOrderResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x0f\n\x07message\x18\x02 \x01(\t\x12-\n\x0cvector_clock\x18\x03 \x01(\x0b\x32\x17.orderqueue.VectorClock\"$\n\x0e\x44\x65queueRequest\x12\x12\n\nexecutorId\x18\x01 \x01(\t\"%\n\x0f\x45lectionRequest\x12\x12\n\nexecutorId\x18\x01 \x01(\t\"$\n\x10\x45lectionResponse\x12\x10\n\x08isLeader\x18\x01 \x01(\x08\"\x14\n\x12\x43learLeaderRequest\"\x15\n\x13\x43learLeaderResponse2\xb6\x02\n\nOrderQueue\x12@\n\x07\x45nqueue\x12\x18.orderqueue.OrderRequest\x1a\x19.orderqueue.OrderResponse\"\x00\x12\x41\n\x07\x44\x65queue\x12\x1a.orderqueue.DequeueRequest\x1a\x18.orderqueue.OrderRequest\"\x00\x12J\n\x0b\x45lectLeader\x12\x1b.orderqueue.ElectionRequest\x1a\x1c.orderqueue.ElectionResponse\"\x00\x12W\n\x12\x43learCurrentLeader\x12\x1e.orderqueue.ClearLeaderRequest\x1a\x1f.orderqueue.ClearLeaderResponse\"\x00\x62\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -32,11 +32,15 @@ if _descriptor._USE_C_DESCRIPTORS == False:
   _globals['_ORDERRESPONSE']._serialized_start=267
   _globals['_ORDERRESPONSE']._serialized_end=363
   _globals['_DEQUEUEREQUEST']._serialized_start=365
-  _globals['_DEQUEUEREQUEST']._serialized_end=381
-  _globals['_ELECTIONREQUEST']._serialized_start=383
-  _globals['_ELECTIONREQUEST']._serialized_end=420
-  _globals['_ELECTIONRESPONSE']._serialized_start=422
-  _globals['_ELECTIONRESPONSE']._serialized_end=458
-  _globals['_ORDERQUEUE']._serialized_start=461
-  _globals['_ORDERQUEUE']._serialized_end=682
+  _globals['_DEQUEUEREQUEST']._serialized_end=401
+  _globals['_ELECTIONREQUEST']._serialized_start=403
+  _globals['_ELECTIONREQUEST']._serialized_end=440
+  _globals['_ELECTIONRESPONSE']._serialized_start=442
+  _globals['_ELECTIONRESPONSE']._serialized_end=478
+  _globals['_CLEARLEADERREQUEST']._serialized_start=480
+  _globals['_CLEARLEADERREQUEST']._serialized_end=500
+  _globals['_CLEARLEADERRESPONSE']._serialized_start=502
+  _globals['_CLEARLEADERRESPONSE']._serialized_end=523
+  _globals['_ORDERQUEUE']._serialized_start=526
+  _globals['_ORDERQUEUE']._serialized_end=836
 # @@protoc_insertion_point(module_scope)

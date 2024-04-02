@@ -4,6 +4,8 @@ from concurrent import futures
 import socket
 import sys
 import os
+import threading
+import time
 
 FILE = __file__ if '__file__' in globals() else os.getenv("PYTHONFILE", "")
 
@@ -44,14 +46,38 @@ class OrderExecutor(order_executor_pb2_grpc.OrderExecutorServicer):
             # If not the leader, do not attempt to execute orders
             print("Not the leader, skipping execution.")
             return order_executor_pb2.ExecuteOrderResponse(success=False, message="Not the leader")
+        
+    def poll_and_execute_orders(self):
+        while True:
+            is_leader = self.request_leadership()
+            if is_leader:
+                with grpc.insecure_channel('localhost:50054') as channel:
+                    order_queue_stub = order_queue_pb2_grpc.OrderQueueStub(channel)
+                    # Include executorId in DequeueRequest
+                    dequeued_order_response = order_queue_stub.Dequeue(order_queue_pb2.DequeueRequest(executorId=self.executor_id))
+                    if dequeued_order_response.orderId:
+                        print(f"Executing order {dequeued_order_response.orderId}")
+                        # Simulate order execution
+                        print(f"Order {dequeued_order_response.orderId} executed")
+                        # After executing an order, clear the current leader to trigger re-election
+                        order_queue_stub.ClearCurrentLeader(order_queue_pb2.ClearLeaderRequest())
+                    else:
+                        print("No orders to execute.")
+            else:
+                print("Not the leader, skipping execution.")
+            time.sleep(5)  
+
 
 def serve():
-    executor_id = socket.gethostname()  # This will be unique for each container, or assign the ids in the yml file
+    executor_id = socket.gethostname()
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-    order_executor_pb2_grpc.add_OrderExecutorServicer_to_server(OrderExecutor(executor_id), server)
+    executor_instance = OrderExecutor(executor_id)
+    order_executor_pb2_grpc.add_OrderExecutorServicer_to_server(executor_instance, server)
     server.add_insecure_port('[::]:50055')
     server.start()
     print(f"Order Executor {executor_id} running on port 50055")
+    # Start the polling in a background thread
+    threading.Thread(target=executor_instance.poll_and_execute_orders, daemon=True).start()
     server.wait_for_termination()
 
 if __name__ == '__main__':

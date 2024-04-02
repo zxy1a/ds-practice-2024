@@ -41,8 +41,10 @@ class OrderResponse(_message.Message):
     def __init__(self, success: bool = ..., message: _Optional[str] = ..., vector_clock: _Optional[_Union[VectorClock, _Mapping]] = ...) -> None: ...
 
 class DequeueRequest(_message.Message):
-    __slots__ = ()
-    def __init__(self) -> None: ...
+    __slots__ = ("executorId",)
+    EXECUTORID_FIELD_NUMBER: _ClassVar[int]
+    executorId: str
+    def __init__(self, executorId: _Optional[str] = ...) -> None: ...
 
 class ElectionRequest(_message.Message):
     __slots__ = ("executorId",)
@@ -55,3 +57,11 @@ class ElectionResponse(_message.Message):
     ISLEADER_FIELD_NUMBER: _ClassVar[int]
     isLeader: bool
     def __init__(self, isLeader: bool = ...) -> None: ...
+
+class ClearLeaderRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class ClearLeaderResponse(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...

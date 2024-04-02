@@ -6,7 +6,8 @@ package orderqueue;
 service OrderQueue {
   rpc Enqueue(OrderRequest) returns (OrderResponse) {}
   rpc Dequeue(DequeueRequest) returns (OrderRequest) {}
-  rpc ElectLeader(ElectionRequest) returns (ElectionResponse) {} 
+  rpc ElectLeader(ElectionRequest) returns (ElectionResponse) {}
+  rpc ClearCurrentLeader(ClearLeaderRequest) returns (ClearLeaderResponse) {} // Added line
 }
 
 message VectorClock {
@@ -29,7 +30,7 @@ message OrderResponse {
 
 // The request message for dequeueing.
 message DequeueRequest {
-  
+  string executorId = 1; // Added field to identify the executor
 }
 
 message ElectionRequest {
@@ -38,4 +39,11 @@ message ElectionRequest {
 
 message ElectionResponse {
   bool isLeader = 1; // True if the requesting executor is elected as the leader
+}
+
+// Added messages for clearing the current leader
+message ClearLeaderRequest {
+}
+
+message ClearLeaderResponse {
 }

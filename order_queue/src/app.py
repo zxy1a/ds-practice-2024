@@ -3,6 +3,8 @@ import threading
 from concurrent import futures
 import sys
 import os
+import heapq
+
 FILE = __file__ if '__file__' in globals() else os.getenv("PYTHONFILE", "")
 utils_path_order_executor = os.path.abspath(os.path.join(FILE, '../../../utils/pb/order_executor'))
 sys.path.insert(0, utils_path_order_executor)
@@ -27,37 +29,47 @@ class OrderQueueService(order_queue_pb2_grpc.OrderQueueServicer):
             else:
                 return order_queue_pb2.ElectionResponse(isLeader=request.executorId == self.current_leader)
 
+    def ClearCurrentLeader(self, request, context):
+        with self.leader_lock:
+            self.current_leader = None
+            return order_queue_pb2.ClearLeaderResponse() 
+
     def Enqueue(self, request, context):
-        # Increment the Vector Clock for enqueue operation
         vc = VectorClock.from_proto(request.vector_clock)
         vc.increment("order_queue_service")
 
-        # Append the order along with its Vector Clock to the queue
-        self.order_queue.append((request, vc))
+        # Determine the priority of the order
+        # The priority is related to the number of books (more books = higher priority)
+        # Heapq is a min heap, so we use negative to simulate a max heap behavior
+        priority = -len(request.bookTitles)
 
-        print(f"Order {request.orderId} enqueued")
+        # Use a tuple (priority, request, vc) to maintain the queue
+        with self.leader_lock:
+            heapq.heappush(self.order_queue, (priority, request, vc))
+
+        print(f"Order {request.orderId} enqueued with priority {priority}")
         return order_queue_pb2.OrderResponse(
             success=True, 
             message="Order enqueued successfully.",
-            vector_clock=vc.to_proto(order_queue_pb2.VectorClock)  # Return the updated Vector Clock
+            vector_clock=vc.to_proto(order_queue_pb2.VectorClock)
         )
 
     def Dequeue(self, request, context):
-        if self.order_queue:
-            order, vc = self.order_queue.pop(0)
-            vc.increment("order_queue_service")  # Increment the Vector Clock for dequeue operation
-
-            print(f"Order {order.orderId} dequeued")
-            # Return the dequeued order with the updated Vector Clock
-            return order_queue_pb2.OrderRequest(
-                orderId=order.orderId,
-                userId=order.userId,
-                bookTitles=order.bookTitles,
-                vector_clock=vc.to_proto(order_queue_pb2.VectorClock)
-            )
-        else:
-            # Return an empty response if the queue is empty
-            return order_queue_pb2.OrderRequest()
+        with self.leader_lock:
+            if request.executorId != self.current_leader:
+                return order_queue_pb2.OrderRequest()
+            if self.order_queue:
+                order, vc = self.order_queue.pop(0)
+                vc.increment("order_queue_service")
+                print(f"Order {order.orderId} dequeued")
+                return order_queue_pb2.OrderRequest(
+                    orderId=order.orderId,
+                    userId=order.userId,
+                    bookTitles=order.bookTitles,
+                    vector_clock=vc.to_proto(order_queue_pb2.VectorClock)
+                )
+            else:
+                return order_queue_pb2.OrderRequest()
 
 def serve():
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
