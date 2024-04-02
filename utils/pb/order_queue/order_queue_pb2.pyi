@@ -43,3 +43,15 @@ class OrderResponse(_message.Message):
 class DequeueRequest(_message.Message):
     __slots__ = ()
     def __init__(self) -> None: ...
+
+class ElectionRequest(_message.Message):
+    __slots__ = ("executorId",)
+    EXECUTORID_FIELD_NUMBER: _ClassVar[int]
+    executorId: str
+    def __init__(self, executorId: _Optional[str] = ...) -> None: ...
+
+class ElectionResponse(_message.Message):
+    __slots__ = ("isLeader",)
+    ISLEADER_FIELD_NUMBER: _ClassVar[int]
+    isLeader: bool
+    def __init__(self, isLeader: bool = ...) -> None: ...

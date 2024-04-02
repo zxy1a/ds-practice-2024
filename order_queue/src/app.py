@@ -1,4 +1,5 @@
 import grpc
+import threading
 from concurrent import futures
 from utils.pb.order_queue import order_queue_pb2, order_queue_pb2_grpc
 from utils.vector_clock import VectorClock  
@@ -6,6 +7,16 @@ from utils.vector_clock import VectorClock
 class OrderQueueService(order_queue_pb2_grpc.OrderQueueServicer):
     def __init__(self):
         self.order_queue = []
+        self.current_leader = None
+        self.leader_lock = threading.Lock()
+
+    def ElectLeader(self, request, context):
+        with self.leader_lock:
+            if not self.current_leader:
+                self.current_leader = request.executorId
+                return order_queue_pb2.ElectionResponse(isLeader=True)
+            else:
+                return order_queue_pb2.ElectionResponse(isLeader=request.executorId == self.current_leader)
 
     def Enqueue(self, request, context):
         # Increment the Vector Clock for enqueue operation

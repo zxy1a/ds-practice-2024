@@ -177,6 +177,12 @@ def enqueue_order(order_id, user_id, book_titles, vector_clock):
         updated_vector_clock = vector_clock.merge(response_clock.get_clock())
         
         return response.success, response.message, updated_vector_clock.get_clock()
+    
+def request_leadership():
+    with grpc.insecure_channel('order_queue:50054') as channel:
+        stub = order_queue_pb2_grpc.OrderQueueStub(channel)
+        response = stub.ElectLeader(order_queue_pb2.ElectionRequest(executorId=socket.gethostname()))
+        return response.isLeader
 
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -188,6 +194,10 @@ CORS(app)
 
 @app.route('/checkout', methods=['POST'])
 def checkout():
+    
+    if not request_leadership():
+        return jsonify({"error": "Not the leader, skipping execution."}), 403
+    
     request_data = request.json
     responses = {}
     order_id = str(uuid.uuid4())

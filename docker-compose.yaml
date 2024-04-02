@@ -93,7 +93,21 @@ services:
         - 50054:50054
       environment:
         - PYTHONUNBUFFERED=TRUE
-        - PYTHONFILE=/app/order_queue/order_queue.py
+        - PYTHONFILE=/app/order_queue/src/order_queue.py
       volumes:
         - ./utils:/app/utils
-        - ./order_queue:/app/order_queue
+        - ./order_queue/src:/app/order_queue/src
+
+    order_executor:
+      build:
+        context: ./
+        dockerfile: ./order_executor/Dockerfile
+      ports:
+        - 50055:50055
+      environment:
+        - PYTHONUNBUFFERED=TRUE
+        - PYTHONFILE=/app/order_executor/src/order_executor.py
+      volumes:
+        - ./utils:/app/utils
+        - ./order_executor/src:/app/order_executor/src
+# Use "docker-compose up -d --scale order_executor=2", as Docker Compose files (version 3 and above) do not directly support specifying the number of replicas for a service.

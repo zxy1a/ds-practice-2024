@@ -6,6 +6,7 @@ package orderqueue;
 service OrderQueue {
   rpc Enqueue(OrderRequest) returns (OrderResponse) {}
   rpc Dequeue(DequeueRequest) returns (OrderRequest) {}
+  rpc ElectLeader(ElectionRequest) returns (ElectionResponse) {} 
 }
 
 message VectorClock {
@@ -29,4 +30,12 @@ message OrderResponse {
 // The request message for dequeueing.
 message DequeueRequest {
   
+}
+
+message ElectionRequest {
+  string executorId = 1; // Unique identifier of the Order Executor instance
+}
+
+message ElectionResponse {
+  bool isLeader = 1; // True if the requesting executor is elected as the leader
 }
