@@ -84,3 +84,16 @@ services:
     volumes:
       - ./utils:/app/utils
       - ./suggestions/src:/app/suggestions/src
+
+    order_queue:
+      build:
+        context: ./
+        dockerfile: ./order_queue/Dockerfile
+      ports:
+        - 50054:50054
+      environment:
+        - PYTHONUNBUFFERED=TRUE
+        - PYTHONFILE=/app/order_queue/order_queue.py
+      volumes:
+        - ./utils:/app/utils
+        - ./order_queue:/app/order_queue

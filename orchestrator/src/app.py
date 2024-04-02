@@ -15,6 +15,7 @@ utils_path_suggestions = os.path.abspath(os.path.join(FILE, '../../../utils/pb/s
 sys.path.insert(0, utils_path_suggestions)
 from flask_cors import CORS
 from utils.vector_clock import VectorClock
+from utils.pb.order_queue import order_queue_pb2, order_queue_pb2_grpc
 from utils.pb.fraud_detection import fraud_detection_pb2_grpc, fraud_detection_pb2
 from utils.pb.suggestions import suggestions_pb2_grpc, suggestions_pb2
 from utils.pb.transaction_verification import transaction_verification_pb2_grpc, transaction_verification_pb2
@@ -156,6 +157,26 @@ def suggestions(title, author, order_id, vector_clock):
         
         # Return the list of suggested titles and the updated vector clock
         return response.titles, vector_clock.get_clock()
+    
+def enqueue_order(order_id, user_id, book_titles, vector_clock):
+    with grpc.insecure_channel('order_queue:50054') as channel:  
+        stub = order_queue_pb2_grpc.OrderQueueStub(channel)
+        # Convert the VectorClock instance to the protobuf format for the gRPC call
+        vector_clock_proto = vector_clock.to_proto(order_queue_pb2.VectorClock)
+        
+        request = order_queue_pb2.OrderRequest(
+            orderId=order_id,
+            userId=user_id,
+            bookTitles=book_titles,
+            vector_clock=vector_clock_proto  
+        )
+        response = stub.Enqueue(request)
+        
+        # Update the vector clock with the response
+        response_clock = VectorClock.from_proto(response.vector_clock)
+        updated_vector_clock = vector_clock.merge(response_clock.get_clock())
+        
+        return response.success, response.message, updated_vector_clock.get_clock()
 
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -232,6 +253,19 @@ def checkout():
         vector_clock = VectorClock(vc_after_e)  # Update the vector clock
     else:
         return jsonify({"error": "Event sequence error: Generating book suggestions"}), 500
+    previous_vc = vector_clock.get_clock()  # Update previous_vc for the next check
+
+    # Event f: Enqueue order
+    if vector_clock.is_after(previous_vc):
+        book_titles = [book['title'] for book in suggested_books]
+        user_id = request_data.get('user', {}).get('id', '')  # Assuming user ID is part of the request data
+        success, message, vc_after_f = enqueue_order(order_id, user_id, book_titles, vector_clock)
+        if not success:
+            return jsonify({"error": "Failed to enqueue order", "message": message}), 400
+        vector_clock = VectorClock(vc_after_f)  # Update the vector clock
+        order_status = 'Order Queued'  # Update order status based on successful enqueue
+    else:
+        return jsonify({"error": "Event sequence error: Enqueue order"}), 500
     previous_vc = vector_clock.get_clock()  # Update previous_vc for the next check
 
     # Construct the response
