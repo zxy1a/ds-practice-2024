@@ -4,12 +4,10 @@ from concurrent import futures
 import sys
 import os
 FILE = __file__ if '__file__' in globals() else os.getenv("PYTHONFILE", "")
-base_path = os.path.abspath(os.path.join(FILE, '../../../'))
-
-utils_path_order_executor = os.path.join(base_path, 'utils/pb/order_executor')
+utils_path_order_executor = os.path.abspath(os.path.join(FILE, '../../../utils/pb/order_executor'))
 sys.path.insert(0, utils_path_order_executor)
 
-utils_path_order_queue = os.path.join(base_path, 'utils/pb/order_queue')
+utils_path_order_queue = os.path.abspath(os.path.join(FILE, '../../../utils/pb/order_queue'))
 sys.path.insert(0, utils_path_order_queue)
 
 from utils.pb.order_queue import order_queue_pb2, order_queue_pb2_grpc
