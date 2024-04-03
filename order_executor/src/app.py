@@ -56,16 +56,20 @@ class OrderExecutor(order_executor_pb2_grpc.OrderExecutorServicer):
                     # Include executorId in DequeueRequest
                     dequeued_order_response = order_queue_stub.Dequeue(order_queue_pb2.DequeueRequest(executorId=self.executor_id))
                     if dequeued_order_response.orderId:
-                        print(f"Executing order {dequeued_order_response.orderId}")
-                        # Simulate order execution
-                        print(f"Order {dequeued_order_response.orderId} executed")
-                        # After executing an order, clear the current leader to trigger re-election
+                        print(f"Order {dequeued_order_response.orderId} dequeued for execution")
+
+                        # Release leadership before executing the order
                         order_queue_stub.ClearCurrentLeader(order_queue_pb2.ClearLeaderRequest())
+                        print("Leadership released before executing the order.")
+
+                        # Simulate order execution
+                        print(f"Executing order {dequeued_order_response.orderId}")
+                        print(f"Order {dequeued_order_response.orderId} executed")
                     else:
                         print("No orders to execute.")
             else:
                 print("Not the leader, skipping execution.")
-            time.sleep(5)  
+            time.sleep(5)
 
 
 def serve():
