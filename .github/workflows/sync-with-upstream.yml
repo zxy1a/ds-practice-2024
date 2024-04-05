@@ -1,0 +1,28 @@
+name: Sync Fork Every Week
+
+on:
+  schedule:
+    - cron: '0 0 * * 0'  
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+    - name: Setup Git Config
+      run: |
+        git config --global user.name 'GitHub Action'
+        git config --global user.email 'action@github.com'
+    - name: Add Upstream Remote
+      run: git remote add upstream https://github.com/thomasabrina/ds-practice-2024.git
+    - name: Fetch Upstream
+      run: git fetch upstream
+    - name: Checkout Main Branch
+      run: git checkout main
+    - name: Merge Upstream
+      run: git merge upstream/main
+    - name: Push to GitHub
+      run: git push origin main 
